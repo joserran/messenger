@@ -4,6 +4,10 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 /**
  * Created by joserran on 11/24/2015.
@@ -13,13 +17,14 @@ public class ChatClient extends JFrame implements Runnable
     Socket socket;
     static final int SOCKETNUMBER = 9987;
     JTextArea ta;
-    JButton send, logout;
+    JButton send, logout, refresh;
     JTextField tf;
 
     Thread thread;
     DataInputStream din;
     DataOutputStream dout;
     String loginName;
+    Statement stat;
 
     ChatClient(String login) throws IOException
     {
@@ -31,6 +36,7 @@ public class ChatClient extends JFrame implements Runnable
 
         send = new JButton("Send");
         logout = new JButton("Log Out");
+        refresh = new JButton("Refresh");
 
         addWindowListener(new WindowAdapter() {
             @Override
@@ -86,10 +92,13 @@ public class ChatClient extends JFrame implements Runnable
             }
         });
 
-        logout.addActionListener(new ActionListener() {
+        logout.addActionListener(new ActionListener()
+        {
             @Override
-            public void actionPerformed(ActionEvent e) {
-                try {
+            public void actionPerformed(ActionEvent e)
+            {
+                try
+                {
                     dout.writeUTF(loginName + " LOGOUT ");
                     System.exit(1);
                 } catch (IOException e1) {
@@ -97,6 +106,16 @@ public class ChatClient extends JFrame implements Runnable
                 }
             }
         });
+
+        refresh.addActionListener(new ActionListener()
+        {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                executeAvailability();
+            }
+        });
+
         socket = new Socket("localhost", SOCKETNUMBER);
 
         din = new DataInputStream(socket.getInputStream());
@@ -110,6 +129,32 @@ public class ChatClient extends JFrame implements Runnable
         setup() ;
     }
 
+    private static void executeAvailability()  {
+        DatabaseConnector connection = new DatabaseConnector();
+        if(!connection.open())
+            System.out.println("unable to connect");
+
+        ResultSet resultSet = null;
+        try {
+            resultSet = connection.executeQuery("select * from users;");
+            ResultSetMetaData rsmd = resultSet.getMetaData();
+            int columnsNumber = rsmd.getColumnCount();
+            while (resultSet.next())
+            {
+                for (int i = 1; i <= columnsNumber; i++) {
+                    if (i > 1) System.out.print(",  ");
+                    String columnValue = resultSet.getString(i);
+                    System.out.print(columnValue + " " + rsmd.getColumnName(i));
+                }
+                System.out.println("");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        connection.close();
+    }
+
     private void setup()
     {
         setSize(600, 400);
@@ -118,6 +163,7 @@ public class ChatClient extends JFrame implements Runnable
         panel.add(tf);
         panel.add(send);
         panel.add(logout);
+        panel.add(refresh);
         add(panel);
         setVisible(true);
     }
